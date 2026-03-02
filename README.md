@@ -1,6 +1,8 @@
+![CI](https://github.com/PaarthSh4rma/job-tracker/actions/workflows/ci.yml/badge.svg)
 # Job Tracker (Full Stack)
 
-Live App: https://job-tracker-eosin-one.vercel.app/
+Live App: https://job-tracker-eosin-one.vercel.app/ 
+
 API Docs: https://job-tracker-tzb6.onrender.com/docs
 
 ## Features
