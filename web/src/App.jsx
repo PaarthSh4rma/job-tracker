@@ -11,6 +11,10 @@ function App() {
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("applied");
 
+  const [applicationDate, setApplicationDate] = useState(() =>
+  new Date().toISOString().slice(0, 10)
+);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
@@ -34,6 +38,7 @@ function App() {
     const { data, error } = await supabase
       .from("applications")
       .select("*")
+      .order("application_date", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (error) alert(error.message);
@@ -66,10 +71,11 @@ function App() {
 
     const { error } = await supabase.from("applications").insert([
       {
-        user_id: session.user.id,
-        company,
-        role,
-        status,
+      user_id: session.user.id,
+      company,
+      role,
+      status,
+      application_date: applicationDate,
       },
     ]);
 
@@ -78,6 +84,7 @@ function App() {
     setCompany("");
     setRole("");
     setStatus("applied");
+    setApplicationDate(new Date().toISOString().slice(0, 10));
 
     fetchApplications();
   };
@@ -163,7 +170,7 @@ function App() {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-4 mb-8">
+        <form onSubmit={handleSubmit} className="grid grid-cols-4 gap-4 mb-8">
           <input
             className="border p-2 rounded"
             placeholder="Company"
@@ -176,6 +183,13 @@ function App() {
             placeholder="Role"
             value={role}
             onChange={(e) => setRole(e.target.value)}
+            required
+          />
+          <input
+            className="border p-2 rounded"
+            type="date"
+            value={applicationDate}
+            onChange={(e) => setApplicationDate(e.target.value)}
             required
           />
           <select
@@ -191,7 +205,7 @@ function App() {
 
           <button
             type="submit"
-            className="col-span-3 bg-black text-white py-2 rounded hover:opacity-80"
+            className="col-span-4 bg-black text-white py-2 rounded hover:opacity-80"
           >
             Add Application
           </button>
@@ -202,6 +216,7 @@ function App() {
             <tr className="border-b">
               <th className="p-2">Company</th>
               <th className="p-2">Role</th>
+              <th className="p-2">Date</th>
               <th className="p-2">Status</th>
               <th className="p-2 text-right">Actions</th>
             </tr>
@@ -211,6 +226,7 @@ function App() {
               <tr key={app.id} className="border-b hover:bg-gray-50">
                 <td className="p-2">{app.company}</td>
                 <td className="p-2">{app.role}</td>
+                <td className="p-2">{app.application_date}</td>
                 <td className="p-2">
                   <select
                     className="border rounded p-1"
