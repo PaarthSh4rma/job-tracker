@@ -1,7 +1,7 @@
 # Job Tracker (Full Stack)
 
 Live App: https://job-tracker-eosin-one.vercel.app/
-API Docs: [<YOUR_RENDER_URL>](https://job-tracker-tzb6.onrender.com)/docs
+API Docs: https://job-tracker-tzb6.onrender.com/docs
 
 ## Features
 - Create / read / update / delete job applications
