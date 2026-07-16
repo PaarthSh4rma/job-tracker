@@ -1,52 +1,68 @@
-import { useCallback, useEffect, useState } from "react";
 import {
-  APPLICATION_STATUSES,
-  DEFAULT_APPLICATION_STATUS,
-} from "../../constants/application";
-import {
-  Button,
-  Card,
-  EmptyState,
-  Input,
-  PageHeading,
-  Select,
-  Skeleton,
-  useToast,
-} from "../../components/ui";
-import { NavigationIcon } from "../../components/layout/NavigationIcon";
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+} from "react";
+import { PageHeading, useToast } from "../../components/ui";
 import { supabase } from "../../supabaseClient";
+import {
+  DEFAULT_APPLICATION_FILTERS,
+  applicationWithStatus,
+  applicationPayload,
+  createApplicationForm,
+  distinctSources,
+  filterAndSortApplications,
+  hasActiveFilters,
+  hasApplicationChanges,
+  replaceApplication,
+  validateApplication,
+} from "./applicationModel";
+import {
+  INITIAL_WORKSPACE_STATE,
+  workspaceReducer,
+} from "./workspaceState";
+import { ApplicationsToolbar } from "./ApplicationsToolbar";
+import {
+  ApplicationsList,
+  ApplicationsLoading,
+} from "./ApplicationsList";
+import { ApplicationDrawer } from "./ApplicationDrawer";
+import {
+  DeleteApplicationDialog,
+  DiscardChangesDialog,
+} from "./ApplicationConfirmations";
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
-}
+function useDebouncedValue(value, delay = 180) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
 
-function ApplicationsLoading() {
-  return (
-    <Card className="overflow-hidden" aria-label="Loading applications">
-      <div className="space-y-4 p-6">
-        {[0, 1, 2].map((item) => (
-          <div key={item} className="grid grid-cols-[1fr_1fr_7rem] gap-4">
-            <Skeleton className="h-10" />
-            <Skeleton className="h-10" />
-            <Skeleton className="h-10" />
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedValue(value), delay);
+    return () => window.clearTimeout(timeout);
+  }, [delay, value]);
+
+  return debouncedValue;
 }
 
 export function ApplicationsWorkspace({ userId }) {
   const { showToast } = useToast();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
-  const [company, setCompany] = useState("");
-  const [role, setRole] = useState("");
-  const [status, setStatus] = useState(DEFAULT_APPLICATION_STATUS);
-  const [applicationDate, setApplicationDate] = useState(today);
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState({ ...DEFAULT_APPLICATION_FILTERS });
+  const [sort, setSort] = useState("application-date");
+  const [formValues, setFormValues] = useState(() => createApplicationForm());
+  const [formErrors, setFormErrors] = useState({});
+  const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
+  const [workspace, dispatch] = useReducer(
+    workspaceReducer,
+    INITIAL_WORKSPACE_STATE,
+  );
+  const debouncedSearch = useDebouncedValue(search);
 
   const fetchApplications = useCallback(async (isActive = () => true) => {
     const { data, error } = await supabase
@@ -74,8 +90,6 @@ export function ApplicationsWorkspace({ userId }) {
 
     const loadApplications = async () => {
       await fetchApplications(() => active);
-      if (!active) return;
-      setLoading(false);
     };
 
     void loadApplications();
@@ -84,61 +98,158 @@ export function ApplicationsWorkspace({ userId }) {
     };
   }, [fetchApplications]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setSubmitting(true);
+  const visibleApplications = useMemo(
+    () =>
+      filterAndSortApplications(applications, {
+        search: debouncedSearch,
+        filters,
+        sort,
+      }),
+    [applications, debouncedSearch, filters, sort],
+  );
+  const sources = useMemo(() => distinctSources(applications), [applications]);
+  const selectedApplication = useMemo(
+    () =>
+      applications.find(({ id }) => id === workspace.applicationId) ?? null,
+    [applications, workspace.applicationId],
+  );
+  const activeFilters = hasActiveFilters(filters, search);
+  const formDirty =
+    (workspace.panel === "create" &&
+      hasApplicationChanges(formValues, null)) ||
+    (workspace.panel === "edit" &&
+      selectedApplication &&
+      hasApplicationChanges(formValues, selectedApplication));
 
-    const { error } = await supabase.from("applications").insert([
-      {
-        user_id: userId,
-        company: company.trim(),
-        role: role.trim(),
-        status,
-        application_date: applicationDate,
-      },
-    ]);
+  const clearFilters = () => {
+    setSearch("");
+    setFilters({ ...DEFAULT_APPLICATION_FILTERS });
+  };
+
+  const openCreate = () => {
+    setFormValues(createApplicationForm());
+    setFormErrors({});
+    dispatch({ type: "open-create" });
+  };
+
+  const openDetails = (applicationId) => {
+    setFormErrors({});
+    dispatch({ type: "open-details", applicationId });
+  };
+
+  const openEdit = () => {
+    if (!selectedApplication) return;
+    setFormValues(createApplicationForm(selectedApplication));
+    setFormErrors({});
+    dispatch({ type: "open-edit" });
+  };
+
+  const requestClosePanel = useCallback(() => {
+    if (formDirty) {
+      setDiscardConfirmationOpen(true);
+      return;
+    }
+    dispatch({ type: "close-panel" });
+  }, [formDirty]);
+
+  const updateForm = (field, value) => {
+    setFormValues((current) => ({ ...current, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors((current) => ({ ...current, [field]: undefined }));
+    }
+  };
+
+  const saveApplication = async (event) => {
+    event.preventDefault();
+    const errors = validateApplication(formValues);
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      const formId =
+        workspace.panel === "create"
+          ? "create-application"
+          : "edit-application";
+      const firstField = Object.keys(errors)[0].replaceAll("_", "-");
+      window.requestAnimationFrame(() => {
+        document.getElementById(`${formId}-${firstField}`)?.focus();
+      });
+      return;
+    }
+
+    setSaving(true);
+    const payload = applicationPayload(formValues, userId);
+    const query =
+      workspace.panel === "create"
+        ? supabase.from("applications").insert([payload])
+        : supabase
+            .from("applications")
+            .update(payload)
+            .eq("id", selectedApplication.id);
+    const { data, error } = await query.select("*").single();
 
     if (error) {
       showToast({
         tone: "error",
-        title: "Application was not added",
+        title:
+          workspace.panel === "create"
+            ? "Application was not added"
+            : "Application was not updated",
         message: error.message,
       });
-    } else {
-      setCompany("");
-      setRole("");
-      setStatus(DEFAULT_APPLICATION_STATUS);
-      setApplicationDate(today());
-      await fetchApplications();
+    } else if (workspace.panel === "create") {
+      setApplications((current) => [data, ...current]);
+      dispatch({ type: "open-details", applicationId: data.id });
       showToast({ title: "Application added" });
+    } else {
+      setApplications((current) =>
+        current.map((application) =>
+          application.id === data.id ? data : application,
+        ),
+      );
+      dispatch({ type: "open-details", applicationId: data.id });
+      showToast({ title: "Application updated" });
     }
-
-    setSubmitting(false);
+    setSaving(false);
   };
 
-  const updateStatus = async (id, newStatus) => {
-    setUpdatingId(id);
-    const { error } = await supabase
+  const updateStatus = async (application, status) => {
+    if (status === application.status) return;
+    const previous = application;
+    setUpdatingId(application.id);
+    setApplications((current) =>
+      replaceApplication(
+        current,
+        applicationWithStatus(application, status, new Date().toISOString()),
+      ),
+    );
+
+    const { data, error } = await supabase
       .from("applications")
-      .update({ status: newStatus })
-      .eq("id", id);
+      .update({ status })
+      .eq("id", application.id)
+      .select("*")
+      .single();
 
     if (error) {
+      setApplications((current) => replaceApplication(current, previous));
       showToast({
         tone: "error",
         title: "Status was not updated",
         message: error.message,
       });
     } else {
-      await fetchApplications();
+      setApplications((current) => replaceApplication(current, data));
       showToast({ title: "Status updated" });
     }
     setUpdatingId(null);
   };
 
-  const deleteApplication = async (id) => {
-    setDeletingId(id);
-    const { error } = await supabase.from("applications").delete().eq("id", id);
+  const deleteApplication = async () => {
+    if (!selectedApplication) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from("applications")
+      .delete()
+      .eq("id", selectedApplication.id);
 
     if (error) {
       showToast({
@@ -146,141 +257,97 @@ export function ApplicationsWorkspace({ userId }) {
         title: "Application was not deleted",
         message: error.message,
       });
-    } else {
-      await fetchApplications();
-      showToast({ title: "Application deleted" });
+      setDeleting(false);
+      return;
     }
-    setDeletingId(null);
+
+    setApplications((current) =>
+      current.filter(({ id }) => id !== selectedApplication.id),
+    );
+    dispatch({ type: "close-panel" });
+    setDeleting(false);
+    showToast({ title: "Application deleted" });
   };
 
+  const drawerMode =
+    workspace.deleteConfirmationOpen || discardConfirmationOpen
+      ? null
+      : workspace.panel;
+
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       <PageHeading
         eyebrow="Workspace"
         title="Applications"
-        description="Your existing application workflow is preserved here. A broader management redesign belongs to the next milestone."
+        description={
+          loading
+            ? "Loading your application workspace…"
+            : `${applications.length} ${
+                applications.length === 1 ? "application" : "applications"
+              } in your private workspace.`
+        }
       />
 
-      <Card className="p-5 sm:p-6">
-        <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Input
-            id="application-company"
-            label="Company"
-            placeholder="Company name"
-            value={company}
-            disabled={submitting}
-            onChange={(event) => setCompany(event.target.value)}
-            required
-          />
-          <Input
-            id="application-role"
-            label="Role"
-            placeholder="Role title"
-            value={role}
-            disabled={submitting}
-            onChange={(event) => setRole(event.target.value)}
-            required
-          />
-          <Input
-            id="application-date"
-            label="Application date"
-            type="date"
-            value={applicationDate}
-            disabled={submitting}
-            onChange={(event) => setApplicationDate(event.target.value)}
-            required
-          />
-          <Select
-            id="application-status"
-            label="Status"
-            value={status}
-            disabled={submitting}
-            onChange={(event) => setStatus(event.target.value)}
-          >
-            {APPLICATION_STATUSES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-          <Button
-            type="submit"
-            className="md:col-span-2 xl:col-span-4"
-            loading={submitting}
-          >
-            {submitting ? "Adding application…" : "Add application"}
-          </Button>
-        </form>
-      </Card>
+      <ApplicationsToolbar
+        search={search}
+        onSearchChange={setSearch}
+        filters={filters}
+        onFilterChange={(field, value) =>
+          setFilters((current) => ({ ...current, [field]: value }))
+        }
+        sort={sort}
+        onSortChange={setSort}
+        sources={sources}
+        onClear={clearFilters}
+        onAdd={openCreate}
+      />
 
       {loading ? (
         <ApplicationsLoading />
       ) : (
-        <Card className="overflow-hidden">
-          {applications.length === 0 ? (
-            <EmptyState
-              icon={<NavigationIcon name="inbox" />}
-              title="No applications yet"
-              description="Add your first application using the form above. It will stay private to your account."
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left">
-                <thead className="border-b border-line bg-subtle/70">
-                  <tr>
-                    {['Company', 'Role', 'Application date', 'Status'].map((heading) => (
-                      <th key={heading} className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted">
-                        {heading}
-                      </th>
-                    ))}
-                    <th className="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider text-muted">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {applications.map((application) => (
-                    <tr key={application.id} className="transition-colors hover:bg-subtle/60">
-                      <td className="px-5 py-4 font-medium text-ink">{application.company}</td>
-                      <td className="px-5 py-4 text-sm text-muted">{application.role}</td>
-                      <td className="px-5 py-4 text-sm text-muted">{application.application_date}</td>
-                      <td className="px-5 py-4">
-                        <label className="sr-only" htmlFor={`status-${application.id}`}>
-                          Status for {application.company}
-                        </label>
-                        <select
-                          id={`status-${application.id}`}
-                          className="min-h-9 rounded-lg border border-line bg-surface px-2.5 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
-                          value={application.status}
-                          disabled={updatingId === application.id}
-                          onChange={(event) => void updateStatus(application.id, event.target.value)}
-                        >
-                          {APPLICATION_STATUSES.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-danger-700 hover:bg-danger-50 hover:text-danger-800"
-                          loading={deletingId === application.id}
-                          onClick={() => void deleteApplication(application.id)}
-                        >
-                          Delete
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
+        <ApplicationsList
+          applications={visibleApplications}
+          totalCount={applications.length}
+          filtered={activeFilters}
+          updatingId={updatingId}
+          onOpen={openDetails}
+          onStatusChange={(application, status) =>
+            void updateStatus(application, status)
+          }
+          onAdd={openCreate}
+          onClear={clearFilters}
+        />
       )}
+
+      <ApplicationDrawer
+        mode={drawerMode}
+        application={selectedApplication}
+        values={formValues}
+        errors={formErrors}
+        saving={saving}
+        onChange={updateForm}
+        onSubmit={(event) => void saveApplication(event)}
+        onClose={requestClosePanel}
+        onEdit={openEdit}
+        onDelete={() => dispatch({ type: "request-delete" })}
+      />
+
+      <DeleteApplicationDialog
+        open={workspace.deleteConfirmationOpen}
+        application={selectedApplication}
+        deleting={deleting}
+        onCancel={() => dispatch({ type: "cancel-delete" })}
+        onConfirm={() => void deleteApplication()}
+      />
+
+      <DiscardChangesDialog
+        open={discardConfirmationOpen}
+        onCancel={() => setDiscardConfirmationOpen(false)}
+        onDiscard={() => {
+          setDiscardConfirmationOpen(false);
+          dispatch({ type: "close-panel" });
+        }}
+      />
     </div>
   );
 }
