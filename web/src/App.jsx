@@ -68,6 +68,7 @@ function App() {
           void fetchApplications();
         } else {
           setApplications([]);
+          setPassword("");
         }
       }
     );
@@ -87,11 +88,14 @@ function App() {
 
     if (error) {
       setAuthFeedback({ type: "error", message: error.message });
-    } else if (!data.session) {
-      setAuthFeedback({
-        type: "success",
-        message: "Check your email to confirm your account, then sign in.",
-      });
+    } else {
+      setPassword("");
+      if (!data.session) {
+        setAuthFeedback({
+          type: "success",
+          message: "Check your email to confirm your account, then sign in.",
+        });
+      }
     }
 
     setAuthSubmitting(false);
@@ -109,6 +113,8 @@ function App() {
 
     if (error) {
       setAuthFeedback({ type: "error", message: error.message });
+    } else {
+      setPassword("");
     }
 
     setAuthSubmitting(false);
@@ -117,6 +123,7 @@ function App() {
   const signOut = async () => {
     await supabase.auth.signOut();
     setApplications([]);
+    setPassword("");
   };
 
   const handleSubmit = async (e) => {
