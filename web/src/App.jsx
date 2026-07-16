@@ -1,64 +1,117 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
+import {
+  APPLICATION_STATUSES,
+  DEFAULT_APPLICATION_STATUS,
+} from "./constants/application";
 
 function App() {
   const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [authFeedback, setAuthFeedback] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [applications, setApplications] = useState([]);
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
-  const [status, setStatus] = useState("applied");
+  const [status, setStatus] = useState(DEFAULT_APPLICATION_STATUS);
 
   const [applicationDate, setApplicationDate] = useState(() =>
-  new Date().toISOString().slice(0, 10)
-);
+    new Date().toISOString().slice(0, 10),
+  );
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (session) fetchApplications();
-    // eslint-disable-next-line
-  }, [session]);
-
-  const fetchApplications = async () => {
+  const fetchApplications = useCallback(async () => {
     const { data, error } = await supabase
       .from("applications")
       .select("*")
-      .order("application_date", { ascending: false })
+      .order("application_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
 
     if (error) alert(error.message);
     else setApplications(data || []);
-  };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const initializeSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (!active) return;
+
+      if (error) {
+        setAuthFeedback({
+          type: "error",
+          message: "We could not restore your session. Please sign in again.",
+        });
+        setSession(null);
+      } else {
+        setSession(data.session);
+        if (data.session) {
+          await fetchApplications();
+        }
+      }
+
+      setAuthLoading(false);
+    };
+
+    void initializeSession();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        if (!active) return;
+        setSession(newSession);
+        setAuthLoading(false);
+        if (newSession) {
+          void fetchApplications();
+        } else {
+          setApplications([]);
+        }
+      }
+    );
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [fetchApplications]);
 
   const signUp = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) alert(error.message);
-    else alert("Signed up! You can now log in.");
+    setAuthSubmitting(true);
+    setAuthFeedback(null);
+
+    const { data, error } = await supabase.auth.signUp({ email, password });
+
+    if (error) {
+      setAuthFeedback({ type: "error", message: error.message });
+    } else if (!data.session) {
+      setAuthFeedback({
+        type: "success",
+        message: "Check your email to confirm your account, then sign in.",
+      });
+    }
+
+    setAuthSubmitting(false);
   };
 
   const signIn = async (e) => {
     e.preventDefault();
+    setAuthSubmitting(true);
+    setAuthFeedback(null);
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (error) alert(error.message);
+
+    if (error) {
+      setAuthFeedback({ type: "error", message: error.message });
+    }
+
+    setAuthSubmitting(false);
   };
 
   const signOut = async () => {
@@ -71,11 +124,11 @@ function App() {
 
     const { error } = await supabase.from("applications").insert([
       {
-      user_id: session.user.id,
-      company,
-      role,
-      status,
-      application_date: applicationDate,
+        user_id: session.user.id,
+        company,
+        role,
+        status,
+        application_date: applicationDate,
       },
     ]);
 
@@ -83,7 +136,7 @@ function App() {
 
     setCompany("");
     setRole("");
-    setStatus("applied");
+    setStatus(DEFAULT_APPLICATION_STATUS);
     setApplicationDate(new Date().toISOString().slice(0, 10));
 
     fetchApplications();
@@ -111,6 +164,16 @@ function App() {
     fetchApplications();
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
+        <p className="text-sm text-gray-600" role="status">
+          Restoring your session…
+        </p>
+      </div>
+    );
+  }
+
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
@@ -118,6 +181,18 @@ function App() {
           <h1 className="text-2xl font-bold mb-6">Job Tracker</h1>
 
           <form className="space-y-4">
+            {authFeedback && (
+              <p
+                className={
+                  authFeedback.type === "error"
+                    ? "text-sm text-red-700"
+                    : "text-sm text-green-700"
+                }
+                role={authFeedback.type === "error" ? "alert" : "status"}
+              >
+                {authFeedback.message}
+              </p>
+            )}
             <input
               className="w-full border p-2 rounded"
               placeholder="Email"
@@ -137,13 +212,15 @@ function App() {
 
             <button
               onClick={signIn}
+              disabled={authSubmitting}
               className="w-full bg-black text-white py-2 rounded hover:opacity-80"
             >
-              Sign in
+              {authSubmitting ? "Please wait…" : "Sign in"}
             </button>
 
             <button
               onClick={signUp}
+              disabled={authSubmitting}
               className="w-full border py-2 rounded hover:bg-gray-50"
             >
               Sign up
@@ -197,10 +274,11 @@ function App() {
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <option value="applied">Applied</option>
-            <option value="interview">Interview</option>
-            <option value="offer">Offer</option>
-            <option value="rejected">Rejected</option>
+            {APPLICATION_STATUSES.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
 
           <button
@@ -235,10 +313,11 @@ function App() {
                       updateStatus(app.id, e.target.value)
                     }
                   >
-                    <option value="applied">Applied</option>
-                    <option value="interview">Interview</option>
-                    <option value="offer">Offer</option>
-                    <option value="rejected">Rejected</option>
+                    {APPLICATION_STATUSES.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </td>
                 <td className="p-2 text-right">
