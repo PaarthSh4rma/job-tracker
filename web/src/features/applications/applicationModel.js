@@ -50,8 +50,11 @@ const NULLABLE_FIELDS = [
   "next_follow_up_date",
 ];
 
-export function todayValue(date = new Date()) {
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+export function todayValue(
+  date = new Date(),
+  timezoneOffsetMinutes = date.getTimezoneOffset(),
+) {
+  const localDate = new Date(date.getTime() - timezoneOffsetMinutes * 60_000);
   return localDate.toISOString().slice(0, 10);
 }
 
@@ -68,9 +71,8 @@ export function createApplicationForm(application = null) {
   );
 }
 
-export function applicationPayload(values, userId) {
+export function applicationPayload(values) {
   const payload = {
-    user_id: userId,
     company: values.company.trim(),
     role: values.role.trim(),
     status: values.status,
@@ -152,6 +154,22 @@ export function replaceApplication(applications, application) {
   return applications.map((item) =>
     item.id === application.id ? application : item,
   );
+}
+
+export function restoreApplicationFields(applications, applicationId, fields) {
+  return applications.map((application) =>
+    application.id === applicationId
+      ? { ...application, ...fields }
+      : application,
+  );
+}
+
+export function addApplicationToCollection(applications, application) {
+  return [application, ...applications.filter(({ id }) => id !== application.id)];
+}
+
+export function removeApplicationFromCollection(applications, applicationId) {
+  return applications.filter(({ id }) => id !== applicationId);
 }
 
 export function applicationWithStatus(application, status, updatedAt) {

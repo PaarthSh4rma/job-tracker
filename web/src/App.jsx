@@ -3,6 +3,7 @@ import { AppShell } from "./components/layout/AppShell";
 import { AuthLoadingScreen } from "./features/auth/AuthLoadingScreen";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { ApplicationsWorkspace } from "./features/applications/ApplicationsWorkspace";
+import { ApplicationsDataProvider } from "./features/applications/ApplicationsDataProvider";
 import {
   getStoredAppView,
   storeAppView,
@@ -17,6 +18,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
   const [authFeedback, setAuthFeedback] = useState(null);
+  const [workspaceAction, setWorkspaceAction] = useState(null);
   const [selectedView, setSelectedView] = useState(() =>
     getStoredAppView(globalThis.sessionStorage),
   );
@@ -59,8 +61,21 @@ function App() {
   }, []);
 
   const selectView = (view) => {
+    setWorkspaceAction(null);
     setSelectedView(view);
     storeAppView(globalThis.sessionStorage, view);
+  };
+
+  const openApplication = (applicationId) => {
+    setWorkspaceAction({ type: "details", applicationId });
+    setSelectedView("applications");
+    storeAppView(globalThis.sessionStorage, "applications");
+  };
+
+  const addApplication = () => {
+    setWorkspaceAction({ type: "create" });
+    setSelectedView("applications");
+    storeAppView(globalThis.sessionStorage, "applications");
   };
 
   const signOut = async () => {
@@ -80,21 +95,27 @@ function App() {
   if (!session) return <AuthScreen initialFeedback={authFeedback} />;
 
   return (
-    <AppShell
-      selectedView={selectedView}
-      onSelectView={selectView}
-      email={session.user.email}
-      onSignOut={() => void signOut()}
-      signingOut={signingOut}
-    >
-      {selectedView === "overview" && (
-        <OverviewPage onOpenApplications={() => selectView("applications")} />
-      )}
-      {selectedView === "applications" && (
-        <ApplicationsWorkspace userId={session.user.id} />
-      )}
-      {selectedView === "analytics" && <AnalyticsPage />}
-    </AppShell>
+    <ApplicationsDataProvider userId={session.user.id}>
+      <AppShell
+        selectedView={selectedView}
+        onSelectView={selectView}
+        email={session.user.email}
+        onSignOut={() => void signOut()}
+        signingOut={signingOut}
+      >
+        {selectedView === "overview" && (
+          <OverviewPage
+            onOpenApplications={() => selectView("applications")}
+            onOpenApplication={openApplication}
+            onAddApplication={addApplication}
+          />
+        )}
+        {selectedView === "applications" && (
+          <ApplicationsWorkspace initialAction={workspaceAction} />
+        )}
+        {selectedView === "analytics" && <AnalyticsPage />}
+      </AppShell>
+    </ApplicationsDataProvider>
   );
 }
 

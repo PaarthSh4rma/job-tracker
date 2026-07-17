@@ -5,18 +5,16 @@ import {
   useReducer,
   useState,
 } from "react";
-import { PageHeading, useToast } from "../../components/ui";
-import { supabase } from "../../supabaseClient";
+import { Alert, PageHeading } from "../../components/ui";
+import { cn } from "../../lib/cn";
 import {
   DEFAULT_APPLICATION_FILTERS,
-  applicationWithStatus,
   applicationPayload,
   createApplicationForm,
   distinctSources,
   filterAndSortApplications,
   hasActiveFilters,
   hasApplicationChanges,
-  replaceApplication,
   validateApplication,
 } from "./applicationModel";
 import {
@@ -33,6 +31,12 @@ import {
   DeleteApplicationDialog,
   DiscardChangesDialog,
 } from "./ApplicationConfirmations";
+import { useApplications } from "./applicationsContext";
+import { ApplicationsPipeline } from "./ApplicationsPipeline";
+import {
+  getStoredApplicationsView,
+  storeApplicationsView,
+} from "./applicationsView";
 
 function useDebouncedValue(value, delay = 180) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -45,58 +49,48 @@ function useDebouncedValue(value, delay = 180) {
   return debouncedValue;
 }
 
-export function ApplicationsWorkspace({ userId }) {
-  const { showToast } = useToast();
-  const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [updatingId, setUpdatingId] = useState(null);
+function initialWorkspaceState(action) {
+  if (action?.type === "create") {
+    return { panel: "create", applicationId: null, deleteConfirmationOpen: false };
+  }
+  if (action?.type === "details") {
+    return {
+      panel: "details",
+      applicationId: action.applicationId,
+      deleteConfirmationOpen: false,
+    };
+  }
+  return INITIAL_WORKSPACE_STATE;
+}
+
+export function ApplicationsWorkspace({ initialAction = null }) {
+  const {
+    applications,
+    loading,
+    error,
+    saving,
+    deletingId,
+    updatingId,
+    createApplication,
+    updateApplication,
+    deleteApplication,
+    updateStatus,
+  } = useApplications();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ ...DEFAULT_APPLICATION_FILTERS });
   const [sort, setSort] = useState("application-date");
+  const [applicationsView, setApplicationsView] = useState(() =>
+    getStoredApplicationsView(globalThis.sessionStorage),
+  );
   const [formValues, setFormValues] = useState(() => createApplicationForm());
   const [formErrors, setFormErrors] = useState({});
   const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
   const [workspace, dispatch] = useReducer(
     workspaceReducer,
-    INITIAL_WORKSPACE_STATE,
+    initialAction,
+    initialWorkspaceState,
   );
   const debouncedSearch = useDebouncedValue(search);
-
-  const fetchApplications = useCallback(async (isActive = () => true) => {
-    const { data, error } = await supabase
-      .from("applications")
-      .select("*")
-      .order("application_date", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false });
-
-    if (!isActive()) return;
-
-    if (error) {
-      showToast({
-        tone: "error",
-        title: "Applications could not be loaded",
-        message: error.message,
-      });
-    } else {
-      setApplications(data || []);
-    }
-    setLoading(false);
-  }, [showToast]);
-
-  useEffect(() => {
-    let active = true;
-
-    const loadApplications = async () => {
-      await fetchApplications(() => active);
-    };
-
-    void loadApplications();
-    return () => {
-      active = false;
-    };
-  }, [fetchApplications]);
 
   const visibleApplications = useMemo(
     () =>
@@ -124,6 +118,11 @@ export function ApplicationsWorkspace({ userId }) {
   const clearFilters = () => {
     setSearch("");
     setFilters({ ...DEFAULT_APPLICATION_FILTERS });
+  };
+
+  const selectApplicationsView = (view) => {
+    setApplicationsView(view);
+    storeApplicationsView(globalThis.sessionStorage, view);
   };
 
   const openCreate = () => {
@@ -175,98 +174,21 @@ export function ApplicationsWorkspace({ userId }) {
       return;
     }
 
-    setSaving(true);
-    const payload = applicationPayload(formValues, userId);
-    const query =
+    const payload = applicationPayload(formValues);
+    const data =
       workspace.panel === "create"
-        ? supabase.from("applications").insert([payload])
-        : supabase
-            .from("applications")
-            .update(payload)
-            .eq("id", selectedApplication.id);
-    const { data, error } = await query.select("*").single();
+        ? await createApplication(payload)
+        : await updateApplication(selectedApplication.id, payload);
 
-    if (error) {
-      showToast({
-        tone: "error",
-        title:
-          workspace.panel === "create"
-            ? "Application was not added"
-            : "Application was not updated",
-        message: error.message,
-      });
-    } else if (workspace.panel === "create") {
-      setApplications((current) => [data, ...current]);
+    if (data) {
       dispatch({ type: "open-details", applicationId: data.id });
-      showToast({ title: "Application added" });
-    } else {
-      setApplications((current) =>
-        current.map((application) =>
-          application.id === data.id ? data : application,
-        ),
-      );
-      dispatch({ type: "open-details", applicationId: data.id });
-      showToast({ title: "Application updated" });
     }
-    setSaving(false);
   };
 
-  const updateStatus = async (application, status) => {
-    if (status === application.status) return;
-    const previous = application;
-    setUpdatingId(application.id);
-    setApplications((current) =>
-      replaceApplication(
-        current,
-        applicationWithStatus(application, status, new Date().toISOString()),
-      ),
-    );
-
-    const { data, error } = await supabase
-      .from("applications")
-      .update({ status })
-      .eq("id", application.id)
-      .select("*")
-      .single();
-
-    if (error) {
-      setApplications((current) => replaceApplication(current, previous));
-      showToast({
-        tone: "error",
-        title: "Status was not updated",
-        message: error.message,
-      });
-    } else {
-      setApplications((current) => replaceApplication(current, data));
-      showToast({ title: "Status updated" });
-    }
-    setUpdatingId(null);
-  };
-
-  const deleteApplication = async () => {
+  const confirmDeleteApplication = async () => {
     if (!selectedApplication) return;
-    setDeleting(true);
-    const { error } = await supabase
-      .from("applications")
-      .delete()
-      .eq("id", selectedApplication.id);
-
-    if (error) {
-      showToast({
-        tone: "error",
-        title: "Application was not deleted",
-        message: error.message,
-      });
-      setDeleting(false);
-      return;
-    }
-
-    setApplications((current) =>
-      current.filter(({ id }) => id !== selectedApplication.id),
-    );
-    dispatch({ type: "close-panel" });
-    setDeleting(false);
-    showToast({ title: "Application deleted" });
+    const deleted = await deleteApplication(selectedApplication);
+    if (deleted) dispatch({ type: "close-panel" });
   };
 
   const drawerMode =
@@ -288,6 +210,12 @@ export function ApplicationsWorkspace({ userId }) {
         }
       />
 
+      {error && (
+        <Alert tone="error" title="Applications unavailable">
+          {error}
+        </Alert>
+      )}
+
       <ApplicationsToolbar
         search={search}
         onSearchChange={setSearch}
@@ -302,8 +230,41 @@ export function ApplicationsWorkspace({ userId }) {
         onAdd={openCreate}
       />
 
+      <div
+        className="flex w-fit rounded-xl bg-subtle p-1"
+        role="group"
+        aria-label="Applications view"
+      >
+        {["list", "pipeline"].map((view) => {
+          const selected = applicationsView === view;
+          return (
+            <button
+              key={view}
+              type="button"
+              aria-pressed={selected}
+              className={cn(
+                "min-h-9 rounded-lg px-4 text-sm font-semibold capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+                selected ? "bg-surface text-ink shadow-control" : "text-muted",
+              )}
+              onClick={() => selectApplicationsView(view)}
+            >
+              {view}
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <ApplicationsLoading />
+      ) : applicationsView === "pipeline" ? (
+        <ApplicationsPipeline
+          applications={visibleApplications}
+          updatingId={updatingId}
+          onOpen={openDetails}
+          onStatusChange={(application, status) =>
+            void updateStatus(application, status)
+          }
+        />
       ) : (
         <ApplicationsList
           applications={visibleApplications}
@@ -335,9 +296,9 @@ export function ApplicationsWorkspace({ userId }) {
       <DeleteApplicationDialog
         open={workspace.deleteConfirmationOpen}
         application={selectedApplication}
-        deleting={deleting}
+        deleting={deletingId === selectedApplication?.id}
         onCancel={() => dispatch({ type: "cancel-delete" })}
-        onConfirm={() => void deleteApplication()}
+        onConfirm={() => void confirmDeleteApplication()}
       />
 
       <DiscardChangesDialog

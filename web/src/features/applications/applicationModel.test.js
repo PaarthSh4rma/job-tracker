@@ -4,10 +4,13 @@ import test from "node:test";
 import {
   ALL_FILTER_VALUE,
   DEFAULT_APPLICATION_FILTERS,
+  addApplicationToCollection,
   filterAndSortApplications,
   hasApplicationChanges,
   applicationWithStatus,
   replaceApplication,
+  removeApplicationFromCollection,
+  restoreApplicationFields,
   safeHttpUrl,
   validateApplication,
 } from "./applicationModel.js";
@@ -159,6 +162,36 @@ test("optimistic status changes can be replaced or rolled back by id", () => {
   assert.equal(optimisticList[0].status, "offer");
   assert.equal(replaceApplication(optimisticList, original)[0], original);
   assert.equal(optimisticList[1], applications[1]);
+});
+
+test("optimistic rollback restores only failed fields and preserves newer data", () => {
+  const current = [
+    {
+      ...applications[0],
+      status: "offer",
+      notes: "Saved while the status request was pending",
+    },
+  ];
+  const rolledBack = restoreApplicationFields(current, applications[0].id, {
+    status: applications[0].status,
+    updated_at: applications[0].updated_at,
+  });
+
+  assert.equal(rolledBack[0].status, "interview");
+  assert.equal(rolledBack[0].notes, "Saved while the status request was pending");
+});
+
+test("shared application collections stay synchronized after create, edit, and delete", () => {
+  const created = { ...applications[0], id: 3, company: "Gamma Group" };
+  const afterCreate = addApplicationToCollection(applications, created);
+  assert.deepEqual(afterCreate.map(({ id }) => id), [3, 1, 2]);
+
+  const edited = { ...created, role: "Senior Designer" };
+  const afterEdit = replaceApplication(afterCreate, edited);
+  assert.equal(afterEdit[0].role, "Senior Designer");
+
+  const afterDelete = removeApplicationFromCollection(afterEdit, created.id);
+  assert.deepEqual(afterDelete, applications);
 });
 
 test("dirty-state detection compares every editable field", () => {
