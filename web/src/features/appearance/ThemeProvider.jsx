@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppearanceContext } from "./appearanceContext";
 import {
   getStoredTheme,
@@ -18,6 +18,7 @@ function applyTheme(resolvedTheme) {
 }
 
 export function ThemeProvider({ children }) {
+  const transitionReadyRef = useRef(false);
   const [preference, setPreference] = useState(() =>
     getStoredTheme(globalThis.localStorage),
   );
@@ -36,7 +37,27 @@ export function ThemeProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    const root = document.documentElement;
+    const shouldAnimate = transitionReadyRef.current;
+    if (shouldAnimate) root.classList.add("theme-transitioning");
     applyTheme(resolvedTheme);
+
+    if (!shouldAnimate) {
+      const frame = window.requestAnimationFrame(() => {
+        transitionReadyRef.current = true;
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    root.classList.add("theme-transitioning");
+    const timeout = window.setTimeout(() => {
+      root.classList.remove("theme-transitioning");
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timeout);
+      root.classList.remove("theme-transitioning");
+    };
   }, [resolvedTheme]);
 
   const selectTheme = (nextPreference) => {

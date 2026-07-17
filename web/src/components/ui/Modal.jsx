@@ -95,7 +95,7 @@ export function Modal({
     >
       <button
         type="button"
-        className="absolute inset-0 cursor-default bg-[var(--overlay)]"
+        className="animate-overlay-in absolute inset-0 cursor-default bg-[var(--overlay)]"
         aria-label="Close dialog"
         tabIndex={-1}
         disabled={closeDisabled}
@@ -107,8 +107,8 @@ export function Modal({
         className={cn(
           "relative z-10 flex w-full flex-col overflow-y-auto border-line bg-surface shadow-panel outline-none",
           variant === "dialog"
-            ? "max-h-[calc(100dvh-2rem)] max-w-lg rounded-2xl border p-5 sm:max-h-[calc(100dvh-3rem)] sm:p-6"
-            : "h-dvh max-w-sm border-l p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5",
+            ? "animate-dialog-in max-h-[calc(100dvh-2rem)] max-w-lg rounded-2xl border p-5 sm:max-h-[calc(100dvh-3rem)] sm:p-6"
+            : "animate-drawer-in h-dvh max-w-sm border-l p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5",
           className,
         )}
         id={panelId}

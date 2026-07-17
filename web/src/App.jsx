@@ -104,17 +104,19 @@ function App() {
         onSignOut={() => void signOut()}
         signingOut={signingOut}
       >
-        {selectedView === "overview" && (
-          <OverviewPage
-            onOpenApplications={() => selectView("applications")}
-            onOpenApplication={openApplication}
-            onAddApplication={addApplication}
-          />
-        )}
-        {selectedView === "applications" && (
-          <ApplicationsWorkspace initialAction={workspaceAction} />
-        )}
-        {selectedView === "analytics" && <AnalyticsPage />}
+        <div key={selectedView} className="view-enter">
+          {selectedView === "overview" && (
+            <OverviewPage
+              onOpenApplications={() => selectView("applications")}
+              onOpenApplication={openApplication}
+              onAddApplication={addApplication}
+            />
+          )}
+          {selectedView === "applications" && (
+            <ApplicationsWorkspace initialAction={workspaceAction} />
+          )}
+          {selectedView === "analytics" && <AnalyticsPage />}
+        </div>
       </AppShell>
     </ApplicationsDataProvider>
   );
