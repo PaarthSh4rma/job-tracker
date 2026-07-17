@@ -1,4 +1,4 @@
-![CI](https://github.com/PaarthSh4rma/job-tracker/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/PaarthSh4rma/trackline/actions/workflows/ci.yml/badge.svg)
 # Trackline
 
 Trackline is a private job-search workspace for managing applications,
