@@ -12,7 +12,7 @@ export const APP_VIEWS = Object.freeze([
   {
     id: "analytics",
     label: "Analytics",
-    description: "Reporting foundations for a future milestone.",
+    description: "Current-status trends and application activity.",
   },
 ]);
 

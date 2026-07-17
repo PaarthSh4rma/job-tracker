@@ -5,6 +5,7 @@ export function Input({
   label,
   error,
   hint,
+  required,
   className,
   inputClassName,
   ...props
@@ -16,6 +17,11 @@ export function Input({
       {label && (
         <label htmlFor={id} className="block text-sm font-medium text-ink">
           {label}
+          {required && (
+            <span className="ml-1 text-danger-700 dark:text-red-300" aria-hidden="true">
+              *
+            </span>
+          )}
         </label>
       )}
       <input
@@ -27,10 +33,11 @@ export function Input({
         )}
         aria-invalid={error ? "true" : undefined}
         aria-describedby={messageId}
+        required={required}
         {...props}
       />
       {error ? (
-        <p id={`${id}-error`} className="text-sm text-danger-700">
+        <p id={`${id}-error`} className="text-sm text-danger-700 dark:text-red-300">
           {error}
         </p>
       ) : hint ? (

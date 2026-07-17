@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { PRODUCT } from "../../config/product";
 import { Alert, Button, Card, Input, PasswordInput } from "../../components/ui";
 import { Brand, BrandMark } from "../../components/layout/Brand";
 import { NavigationIcon } from "../../components/layout/NavigationIcon";
+import { userFacingError } from "../../lib/userFacingError";
+import { firstInvalidFieldId } from "../../lib/formValidation";
+import { AppearanceControl } from "../appearance/AppearanceControl";
 import { supabase } from "../../supabaseClient";
 import {
   AUTH_MODES,
@@ -24,6 +27,7 @@ export function AuthScreen({ initialFeedback = null }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(initialFeedback);
+  const submittingRef = useRef(false);
 
   const signIn = async () => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -56,23 +60,32 @@ export function AuthScreen({ initialFeedback = null }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submittingRef.current) return;
     const validationErrors = validateAuthForm({ email, password }, mode);
     setErrors(validationErrors);
     setFeedback(null);
 
-    if (Object.keys(validationErrors).length > 0) return;
+    if (Object.keys(validationErrors).length > 0) {
+      const firstFieldId = firstInvalidFieldId("auth", validationErrors);
+      window.requestAnimationFrame(() => {
+        document.getElementById(firstFieldId)?.focus();
+      });
+      return;
+    }
 
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       if (mode === AUTH_MODES.SIGN_IN) await signIn();
       else await signUp();
-    } catch (error) {
+    } catch {
       setFeedback({
         type: "error",
         title: mode === AUTH_MODES.SIGN_IN ? "Unable to sign in" : "Unable to create account",
-        message: error.message,
+        message: userFacingError(mode === AUTH_MODES.SIGN_IN ? "signIn" : "signUp"),
       });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -90,10 +103,13 @@ export function AuthScreen({ initialFeedback = null }) {
     <main className="min-h-screen bg-canvas px-4 py-5 sm:px-6 sm:py-8 lg:flex lg:items-center lg:justify-center lg:p-10">
       <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-line bg-surface shadow-panel lg:grid lg:min-h-[680px] lg:grid-cols-[1.02fr_0.98fr]">
         <section className="flex min-h-full flex-col px-5 py-6 sm:px-10 sm:py-9 lg:px-14 lg:py-12">
-          <Brand />
+          <div className="flex items-start justify-between gap-3">
+            <Brand className="min-w-0" />
+            <AppearanceControl compact />
+          </div>
 
           <div className="mx-auto my-auto w-full max-w-md py-12 lg:py-10">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">
               {isSignIn ? "Welcome back" : "Start your workspace"}
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
@@ -134,7 +150,12 @@ export function AuthScreen({ initialFeedback = null }) {
               })}
             </div>
 
-            <form className="mt-7 space-y-5" onSubmit={handleSubmit} noValidate>
+            <form
+              className="mt-7 space-y-5"
+              onSubmit={handleSubmit}
+              noValidate
+              aria-busy={submitting || undefined}
+            >
               {feedback && (
                 <Alert tone={feedback.type} title={feedback.title}>
                   {feedback.message}
@@ -182,7 +203,7 @@ export function AuthScreen({ initialFeedback = null }) {
               {isSignIn ? "New to Trackline?" : "Already have an account?"}{" "}
               <button
                 type="button"
-                className="font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-brand-300"
                 onClick={switchMode}
                 disabled={submitting}
               >

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "../../components/ui";
 import { supabase } from "../../supabaseClient";
 import {
@@ -9,6 +9,7 @@ import {
   restoreApplicationFields,
 } from "./applicationModel";
 import { ApplicationsContext } from "./applicationsContext";
+import { userFacingError } from "../../lib/userFacingError";
 
 export function ApplicationsDataProvider({ userId, children }) {
   const { showToast } = useToast();
@@ -18,9 +19,13 @@ export function ApplicationsDataProvider({ userId, children }) {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+  const savingRef = useRef(false);
+  const deletingIdsRef = useRef(new Set());
+  const updatingIdsRef = useRef(new Set());
 
   const refresh = useCallback(async (isActive = () => true) => {
     setError(null);
+    setLoading(true);
     const { data, error: fetchError } = await supabase
       .from("applications")
       .select("*")
@@ -30,11 +35,12 @@ export function ApplicationsDataProvider({ userId, children }) {
     if (!isActive()) return false;
 
     if (fetchError) {
-      setError("Your applications could not be loaded. Please try again.");
+      const message = userFacingError("load");
+      setError(message);
       showToast({
         tone: "error",
         title: "Applications could not be loaded",
-        message: fetchError.message,
+        message,
       });
       setLoading(false);
       return false;
@@ -59,6 +65,8 @@ export function ApplicationsDataProvider({ userId, children }) {
   }, [refresh, userId]);
 
   const createApplication = useCallback(async (payload) => {
+    if (savingRef.current) return null;
+    savingRef.current = true;
     setSaving(true);
     const { data, error: createError } = await supabase
       .from("applications")
@@ -67,22 +75,27 @@ export function ApplicationsDataProvider({ userId, children }) {
       .single();
 
     if (createError) {
+      const message = userFacingError("create");
       showToast({
         tone: "error",
         title: "Application was not added",
-        message: createError.message,
+        message,
       });
+      savingRef.current = false;
       setSaving(false);
       return null;
     }
 
     setApplications((current) => addApplicationToCollection(current, data));
+    savingRef.current = false;
     setSaving(false);
     showToast({ title: "Application added" });
     return data;
   }, [showToast, userId]);
 
   const updateApplication = useCallback(async (id, payload) => {
+    if (savingRef.current) return null;
+    savingRef.current = true;
     setSaving(true);
     const { data, error: updateError } = await supabase
       .from("applications")
@@ -92,22 +105,27 @@ export function ApplicationsDataProvider({ userId, children }) {
       .single();
 
     if (updateError) {
+      const message = userFacingError("update");
       showToast({
         tone: "error",
         title: "Application was not updated",
-        message: updateError.message,
+        message,
       });
+      savingRef.current = false;
       setSaving(false);
       return null;
     }
 
     setApplications((current) => replaceApplication(current, data));
+    savingRef.current = false;
     setSaving(false);
     showToast({ title: "Application updated" });
     return data;
   }, [showToast, userId]);
 
   const deleteApplication = useCallback(async (application) => {
+    if (deletingIdsRef.current.has(application.id)) return false;
+    deletingIdsRef.current.add(application.id);
     setDeletingId(application.id);
     const { error: deleteError } = await supabase
       .from("applications")
@@ -115,11 +133,13 @@ export function ApplicationsDataProvider({ userId, children }) {
       .eq("id", application.id);
 
     if (deleteError) {
+      const message = userFacingError("delete");
       showToast({
         tone: "error",
         title: "Application was not deleted",
-        message: deleteError.message,
+        message,
       });
+      deletingIdsRef.current.delete(application.id);
       setDeletingId(null);
       return false;
     }
@@ -127,6 +147,7 @@ export function ApplicationsDataProvider({ userId, children }) {
     setApplications((current) =>
       removeApplicationFromCollection(current, application.id),
     );
+    deletingIdsRef.current.delete(application.id);
     setDeletingId(null);
     showToast({ title: "Application deleted" });
     return true;
@@ -134,6 +155,8 @@ export function ApplicationsDataProvider({ userId, children }) {
 
   const updateStatus = useCallback(async (application, status) => {
     if (status === application.status) return true;
+    if (updatingIdsRef.current.has(application.id)) return false;
+    updatingIdsRef.current.add(application.id);
     const optimistic = applicationWithStatus(
       application,
       status,
@@ -159,19 +182,23 @@ export function ApplicationsDataProvider({ userId, children }) {
       showToast({
         tone: "error",
         title: "Status was not updated",
-        message: statusError.message,
+        message: userFacingError("status"),
       });
+      updatingIdsRef.current.delete(application.id);
       setUpdatingId(null);
       return false;
     }
 
     setApplications((current) => replaceApplication(current, data));
+    updatingIdsRef.current.delete(application.id);
     setUpdatingId(null);
     showToast({ title: "Status updated" });
     return true;
   }, [showToast]);
 
   const updateFollowUp = useCallback(async (application, nextFollowUpDate) => {
+    if (updatingIdsRef.current.has(application.id)) return false;
+    updatingIdsRef.current.add(application.id);
     const optimistic = {
       ...application,
       next_follow_up_date: nextFollowUpDate || null,
@@ -197,13 +224,15 @@ export function ApplicationsDataProvider({ userId, children }) {
       showToast({
         tone: "error",
         title: "Follow-up was not updated",
-        message: followUpError.message,
+        message: userFacingError("followUp"),
       });
+      updatingIdsRef.current.delete(application.id);
       setUpdatingId(null);
       return false;
     }
 
     setApplications((current) => replaceApplication(current, data));
+    updatingIdsRef.current.delete(application.id);
     setUpdatingId(null);
     showToast({
       title: nextFollowUpDate ? "Follow-up rescheduled" : "Follow-up cleared",

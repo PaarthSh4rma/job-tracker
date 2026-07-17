@@ -8,7 +8,7 @@ export { IconButton } from "./IconButton";
 export { Input } from "./Input";
 export { Modal } from "./Modal";
 export { PasswordInput } from "./PasswordInput";
-export { Select } from "./Select";
+export { Select, SelectChevron } from "./Select";
 export { Skeleton } from "./Skeleton";
 export { Textarea } from "./Textarea";
 export { ToastProvider } from "./Toast";

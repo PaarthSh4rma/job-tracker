@@ -25,11 +25,11 @@ export function Brand({ compact = false, className }) {
     <div className={cn("flex items-center gap-3", className)}>
       <BrandMark />
       {!compact && (
-        <div>
+        <div className="min-w-0">
           <p className="text-base font-semibold tracking-tight text-ink">
             {PRODUCT.name}
           </p>
-          <p className="text-xs text-muted">
+          <p className="text-xs leading-4 text-muted">
             {PRODUCT.tagline}
           </p>
         </div>

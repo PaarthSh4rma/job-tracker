@@ -12,7 +12,7 @@ export const IconButton = forwardRef(function IconButton(
       aria-label={label}
       title={label}
       className={cn(
-        "inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-transparent text-muted transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-transparent text-muted transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}

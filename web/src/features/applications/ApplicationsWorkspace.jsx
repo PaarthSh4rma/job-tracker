@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from "react";
 import { Alert, PageHeading } from "../../components/ui";
@@ -37,6 +38,8 @@ import {
   getStoredApplicationsView,
   storeApplicationsView,
 } from "./applicationsView";
+import { applicationShortcut } from "./keyboardShortcuts";
+import { firstInvalidFieldId } from "../../lib/formValidation";
 
 function useDebouncedValue(value, delay = 180) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -75,6 +78,7 @@ export function ApplicationsWorkspace({ initialAction = null }) {
     updateApplication,
     deleteApplication,
     updateStatus,
+    refresh,
   } = useApplications();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ ...DEFAULT_APPLICATION_FILTERS });
@@ -85,6 +89,8 @@ export function ApplicationsWorkspace({ initialAction = null }) {
   const [formValues, setFormValues] = useState(() => createApplicationForm());
   const [formErrors, setFormErrors] = useState({});
   const [discardConfirmationOpen, setDiscardConfirmationOpen] = useState(false);
+  const searchInputRef = useRef(null);
+  const addButtonRef = useRef(null);
   const [workspace, dispatch] = useReducer(
     workspaceReducer,
     initialAction,
@@ -125,11 +131,11 @@ export function ApplicationsWorkspace({ initialAction = null }) {
     storeApplicationsView(globalThis.sessionStorage, view);
   };
 
-  const openCreate = () => {
+  const openCreate = useCallback(() => {
     setFormValues(createApplicationForm());
     setFormErrors({});
     dispatch({ type: "open-create" });
-  };
+  }, []);
 
   const openDetails = (applicationId) => {
     setFormErrors({});
@@ -151,6 +157,28 @@ export function ApplicationsWorkspace({ initialAction = null }) {
     dispatch({ type: "close-panel" });
   }, [formDirty]);
 
+  const focusWorkspaceFallback = useCallback(() => {
+    window.requestAnimationFrame(() => searchInputRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      const overlayOpen = workspace.panel !== null || discardConfirmationOpen;
+      const shortcut = applicationShortcut(event, overlayOpen);
+      if (!shortcut) return;
+
+      event.preventDefault();
+      if (shortcut === "search") searchInputRef.current?.focus();
+      else {
+        addButtonRef.current?.focus();
+        openCreate();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [discardConfirmationOpen, openCreate, workspace.panel]);
+
   const updateForm = (field, value) => {
     setFormValues((current) => ({ ...current, [field]: value }));
     if (formErrors[field]) {
@@ -167,9 +195,9 @@ export function ApplicationsWorkspace({ initialAction = null }) {
         workspace.panel === "create"
           ? "create-application"
           : "edit-application";
-      const firstField = Object.keys(errors)[0].replaceAll("_", "-");
+      const firstFieldId = firstInvalidFieldId(formId, errors);
       window.requestAnimationFrame(() => {
-        document.getElementById(`${formId}-${firstField}`)?.focus();
+        document.getElementById(firstFieldId)?.focus();
       });
       return;
     }
@@ -188,7 +216,10 @@ export function ApplicationsWorkspace({ initialAction = null }) {
   const confirmDeleteApplication = async () => {
     if (!selectedApplication) return;
     const deleted = await deleteApplication(selectedApplication);
-    if (deleted) dispatch({ type: "close-panel" });
+    if (deleted) {
+      dispatch({ type: "close-panel" });
+      focusWorkspaceFallback();
+    }
   };
 
   const drawerMode =
@@ -212,7 +243,14 @@ export function ApplicationsWorkspace({ initialAction = null }) {
 
       {error && (
         <Alert tone="error" title="Applications unavailable">
-          {error}
+          <p>{error}</p>
+          <button
+            type="button"
+            className="mt-3 min-h-9 rounded-lg border border-current px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            onClick={() => void refresh()}
+          >
+            Try again
+          </button>
         </Alert>
       )}
 
@@ -228,6 +266,8 @@ export function ApplicationsWorkspace({ initialAction = null }) {
         sources={sources}
         onClear={clearFilters}
         onAdd={openCreate}
+        searchInputRef={searchInputRef}
+        addButtonRef={addButtonRef}
       />
 
       <div
@@ -243,7 +283,7 @@ export function ApplicationsWorkspace({ initialAction = null }) {
               type="button"
               aria-pressed={selected}
               className={cn(
-                "min-h-9 rounded-lg px-4 text-sm font-semibold capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
+                "min-h-10 rounded-lg px-4 text-sm font-semibold capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
                 selected ? "bg-surface text-ink shadow-control" : "text-muted",
               )}
               onClick={() => selectApplicationsView(view)}
@@ -255,7 +295,7 @@ export function ApplicationsWorkspace({ initialAction = null }) {
       </div>
 
       {loading ? (
-        <ApplicationsLoading />
+        <ApplicationsLoading view={applicationsView} />
       ) : applicationsView === "pipeline" ? (
         <ApplicationsPipeline
           applications={visibleApplications}

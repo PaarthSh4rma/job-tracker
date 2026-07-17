@@ -11,6 +11,7 @@ import {
 import { useToast } from "./components/ui";
 import { AnalyticsPage, OverviewPage } from "./pages";
 import { supabase } from "./supabaseClient";
+import { userFacingError } from "./lib/userFacingError";
 
 function App() {
   const { showToast } = useToast();
@@ -34,7 +35,7 @@ function App() {
         setAuthFeedback({
           type: "error",
           title: "Session could not be restored",
-          message: "Please sign in again to continue.",
+          message: userFacingError("session"),
         });
         setSession(null);
       } else {
@@ -85,7 +86,7 @@ function App() {
       showToast({
         tone: "error",
         title: "Unable to sign out",
-        message: error.message,
+        message: userFacingError("signOut"),
       });
     }
     setSigningOut(false);

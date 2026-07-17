@@ -22,7 +22,7 @@ function createStorage(initialValue = null) {
   };
 }
 
-test("shell navigation exposes exactly the three Milestone 3 views", () => {
+test("shell navigation exposes exactly the three product views", () => {
   assert.deepEqual(
     APP_VIEWS.map(({ id }) => id),
     ["overview", "applications", "analytics"],

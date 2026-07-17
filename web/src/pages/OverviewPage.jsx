@@ -24,6 +24,7 @@ export function OverviewPage({
     error,
     updatingId,
     updateFollowUp,
+    refresh,
   } = useApplications();
   const { analytics, calculationError } = useApplicationAnalytics(applications);
   const dashboardError = error || calculationError;
@@ -44,12 +45,15 @@ export function OverviewPage({
 
       {dashboardError && (
         <Alert tone="error" title="Dashboard unavailable">
-          {dashboardError}
+          <p>{dashboardError}</p>
+          <Button className="mt-3" size="sm" variant="secondary" onClick={() => void refresh()}>
+            Try again
+          </Button>
         </Alert>
       )}
 
       {loading ? (
-        <DashboardLoading />
+        <DashboardLoading variant="overview" />
       ) : dashboardError ? null : applications.length === 0 ? (
         <Card>
           <EmptyState

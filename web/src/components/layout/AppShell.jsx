@@ -4,6 +4,7 @@ import { cn } from "../../lib/cn";
 import { Button, IconButton, Modal } from "../ui";
 import { Brand } from "./Brand";
 import { NavigationIcon } from "./NavigationIcon";
+import { AppearanceControl } from "../../features/appearance/AppearanceControl";
 
 function Navigation({ selectedView, onSelect, onNavigate }) {
   return (
@@ -17,7 +18,7 @@ function Navigation({ selectedView, onSelect, onNavigate }) {
             className={cn(
               "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500",
               active
-                ? "bg-brand-50 text-brand-800"
+                ? "bg-brand-50 text-brand-800 dark:bg-emerald-950 dark:text-brand-200"
                 : "text-muted hover:bg-subtle hover:text-ink",
             )}
             aria-current={active ? "page" : undefined}
@@ -38,11 +39,14 @@ function Navigation({ selectedView, onSelect, onNavigate }) {
 function Account({ email, onSignOut, signingOut }) {
   return (
     <div className="border-t border-line pt-4">
+      <div className="mb-4">
+        <AppearanceControl />
+      </div>
       <div className="mb-3 min-w-0 px-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-faint">
           Signed in as
         </p>
-        <p className="mt-1 truncate text-sm text-ink" title={email}>
+        <p className="mt-1 break-all text-sm text-ink" title={email}>
           {email}
         </p>
       </div>
@@ -95,6 +99,8 @@ export function AppShell({
         </p>
         <IconButton
           label="Open navigation"
+          aria-expanded={mobileNavigationOpen}
+          aria-controls="mobile-navigation"
           onClick={() => setMobileNavigationOpen(true)}
         >
           <NavigationIcon name="menu" />
@@ -105,6 +111,7 @@ export function AppShell({
         open={mobileNavigationOpen}
         onClose={closeMobileNavigation}
         title="Navigation"
+        panelId="mobile-navigation"
       >
         <Brand className="mt-6 rounded-xl bg-subtle p-3" />
         <div className="mt-6">
@@ -123,8 +130,8 @@ export function AppShell({
         </div>
       </Modal>
 
-      <main className="lg:pl-64">
-        <div className="mx-auto w-full max-w-7xl px-4 py-7 sm:px-6 sm:py-9 lg:px-10 lg:py-10">
+      <main id="main-content" className="lg:pl-64">
+        <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10">
           {children}
         </div>
       </main>

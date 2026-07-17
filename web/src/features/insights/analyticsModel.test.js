@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   classifyFollowUps,
   computeAnalytics,
+  formatRate,
   groupApplicationsByPipeline,
   groupApplicationsByWeek,
   mondayWeekStart,
@@ -53,6 +54,8 @@ test("rates are unavailable for a zero reached-applied denominator", () => {
   assert.equal(analytics.responseRate, null);
   assert.equal(analytics.interviewConversionRate, null);
   assert.equal(analytics.offerConversionRate, null);
+  assert.equal(formatRate(analytics.responseRate), "Unavailable");
+  assert.equal(formatRate(0), "0%");
 });
 
 test("weekly grouping starts Monday, sorts chronologically, and excludes null dates", () => {

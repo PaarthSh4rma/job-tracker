@@ -21,6 +21,7 @@ export function Modal({
   variant = "drawer",
   closeDisabled = false,
   focusKey,
+  panelId,
 }) {
   const closeButtonRef = useRef(null);
   const panelRef = useRef(null);
@@ -37,7 +38,7 @@ export function Modal({
 
     const previousActiveElement = document.activeElement;
     const onKeyDown = (event) => {
-      if (event.key === "Escape") onCloseRef.current();
+      if (event.key === "Escape" && !closeDisabled) onCloseRef.current();
       if (event.key !== "Tab") return;
 
       const focusable = [...panelRef.current.querySelectorAll(FOCUSABLE_SELECTOR)];
@@ -66,9 +67,14 @@ export function Modal({
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = previousOverflow;
-      previousActiveElement?.focus?.();
+      window.setTimeout(() => {
+        if (previousActiveElement?.isConnected) previousActiveElement.focus?.();
+        else if (!document.querySelector('[role="dialog"]')) {
+          document.querySelector("[data-focus-fallback]")?.focus?.();
+        }
+      }, 0);
     };
-  }, [open]);
+  }, [closeDisabled, open]);
 
   useEffect(() => {
     if (open && focusKey !== undefined) {
@@ -89,7 +95,7 @@ export function Modal({
     >
       <button
         type="button"
-        className="absolute inset-0 cursor-default bg-slate-950/45"
+        className="absolute inset-0 cursor-default bg-[var(--overlay)]"
         aria-label="Close dialog"
         tabIndex={-1}
         disabled={closeDisabled}
@@ -99,12 +105,13 @@ export function Modal({
         ref={panelRef}
         tabIndex={-1}
         className={cn(
-          "relative z-10 flex w-full flex-col overflow-y-auto bg-surface shadow-panel outline-none",
+          "relative z-10 flex w-full flex-col overflow-y-auto border-line bg-surface shadow-panel outline-none",
           variant === "dialog"
-            ? "max-h-[calc(100vh-2rem)] max-w-lg rounded-2xl p-5 sm:max-h-[calc(100vh-3rem)] sm:p-6"
-            : "h-full max-w-sm p-5",
+            ? "max-h-[calc(100dvh-2rem)] max-w-lg rounded-2xl border p-5 sm:max-h-[calc(100dvh-3rem)] sm:p-6"
+            : "h-dvh max-w-sm border-l p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5",
           className,
         )}
+        id={panelId}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -112,7 +119,7 @@ export function Modal({
       >
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h2 id={titleId} className="truncate text-lg font-semibold text-ink">
+            <h2 id={titleId} className="break-words text-lg font-semibold text-ink">
               {title}
             </h2>
             {description && (

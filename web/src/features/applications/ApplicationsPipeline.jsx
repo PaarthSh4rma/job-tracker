@@ -1,4 +1,4 @@
-import { Card } from "../../components/ui";
+import { Card, SelectChevron } from "../../components/ui";
 import { APPLICATION_STATUSES } from "../../constants/application";
 import { cn } from "../../lib/cn";
 import { formatDate, todayValue } from "./applicationModel";
@@ -25,6 +25,7 @@ export function ApplicationsPipeline({
   return (
     <div
       className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7"
+      role="region"
       aria-label="Application pipeline"
     >
       {APPLICATION_STATUSES.map((status) => {
@@ -78,7 +79,7 @@ export function ApplicationsPipeline({
                                 "mt-2 block text-xs font-semibold",
                                 followUp.includes("overdue") ||
                                   followUp.includes("today")
-                                  ? "text-danger-700"
+                                  ? "text-danger-700 dark:text-red-300"
                                   : "text-muted",
                               )}
                             >
@@ -93,24 +94,27 @@ export function ApplicationsPipeline({
                           >
                             Status for {application.company}
                           </label>
-                          <select
-                            id={`pipeline-status-${application.id}`}
-                            value={application.status}
-                            disabled={updatingId !== null}
-                            className={cn(
-                              "min-h-9 w-full rounded-full border-0 px-2 text-xs font-semibold outline-none ring-1 ring-inset focus:ring-2 focus:ring-brand-500 disabled:opacity-60",
-                              presentation.className,
-                            )}
-                            onChange={(event) =>
-                              onStatusChange(application, event.target.value)
-                            }
-                          >
-                            {APPLICATION_STATUSES.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <select
+                              id={`pipeline-status-${application.id}`}
+                              value={application.status}
+                              disabled={updatingId !== null}
+                              className={cn(
+                                "min-h-10 w-full appearance-none rounded-full border-0 py-2 pl-3 pr-9 text-xs font-semibold outline-none ring-1 ring-inset focus:ring-2 focus:ring-brand-500 disabled:opacity-60",
+                                presentation.className,
+                              )}
+                              onChange={(event) =>
+                                onStatusChange(application, event.target.value)
+                              }
+                            >
+                              {APPLICATION_STATUSES.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <SelectChevron className="right-3 size-3.5 text-current opacity-70" />
+                          </div>
                         </div>
                       </Card>
                     </li>

@@ -40,6 +40,8 @@ export function ApplicationsToolbar({
   sources,
   onClear,
   onAdd,
+  searchInputRef,
+  addButtonRef,
 }) {
   const clearDisabled = !hasActiveFilters(filters, search);
   const sourceOptions =
@@ -61,17 +63,25 @@ export function ApplicationsToolbar({
             className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-faint"
           />
           <input
+            ref={searchInputRef}
+            data-focus-fallback
             id="applications-search"
             type="search"
             value={search}
             placeholder="Search company, role, location, or notes…"
-            className="min-h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-3.5 text-[15px] text-ink shadow-control outline-none transition placeholder:text-faint focus:border-brand-500 focus:ring-3 focus:ring-brand-500/15"
+            className="min-h-11 w-full rounded-xl border border-line bg-surface pl-10 pr-12 text-[15px] text-ink shadow-control outline-none transition-colors placeholder:text-faint focus:border-brand-500 focus:ring-3 focus:ring-brand-500/15"
             onChange={(event) => onSearchChange(event.target.value)}
           />
+          <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-line bg-subtle px-1.5 py-0.5 text-xs font-medium text-faint sm:block" aria-hidden="true">
+            /
+          </kbd>
         </div>
-        <Button className="shrink-0 lg:px-5" onClick={onAdd}>
+        <Button ref={addButtonRef} className="shrink-0 lg:px-5" onClick={onAdd}>
           <NavigationIcon name="plus" />
           Add application
+          <kbd className="hidden rounded border border-white/40 px-1 text-[10px] font-semibold opacity-80 sm:inline" aria-hidden="true">
+            N
+          </kbd>
         </Button>
       </div>
 

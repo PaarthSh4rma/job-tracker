@@ -4,7 +4,7 @@ export function EmptyState({ icon, title, description, action, className }) {
   return (
     <div className={cn("px-5 py-12 text-center", className)}>
       {icon && (
-        <div className="mx-auto mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+        <div className="mx-auto mb-4 flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700 dark:bg-emerald-950 dark:text-brand-200">
           {icon}
         </div>
       )}

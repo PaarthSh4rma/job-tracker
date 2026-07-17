@@ -1,4 +1,4 @@
-import { Alert, Card, EmptyState, PageHeading } from "../components/ui";
+import { Alert, Button, Card, EmptyState, PageHeading } from "../components/ui";
 import { NavigationIcon } from "../components/layout/NavigationIcon";
 import { useApplications } from "../features/applications/applicationsContext";
 import { formatRate } from "../features/insights/analyticsModel";
@@ -11,7 +11,7 @@ import {
 } from "../features/insights/InsightComponents";
 
 export function AnalyticsPage() {
-  const { applications, loading, error } = useApplications();
+  const { applications, loading, error, refresh } = useApplications();
   const { analytics, calculationError } = useApplicationAnalytics(applications);
   const analyticsError = error || calculationError;
 
@@ -25,12 +25,15 @@ export function AnalyticsPage() {
 
       {analyticsError && (
         <Alert tone="error" title="Analytics unavailable">
-          {analyticsError}
+          <p>{analyticsError}</p>
+          <Button className="mt-3" size="sm" variant="secondary" onClick={() => void refresh()}>
+            Try again
+          </Button>
         </Alert>
       )}
 
       {loading ? (
-        <DashboardLoading />
+        <DashboardLoading variant="analytics" />
       ) : analyticsError ? null : applications.length === 0 ? (
         <Card>
           <EmptyState

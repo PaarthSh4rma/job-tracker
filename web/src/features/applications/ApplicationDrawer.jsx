@@ -23,7 +23,9 @@ function Detail({ label, children, full = false }) {
       <dt className="text-xs font-bold uppercase tracking-wider text-faint">
         {label}
       </dt>
-      <dd className="mt-1.5 text-sm leading-6 text-ink">{children || "Not set"}</dd>
+      <dd className="mt-1.5 min-w-0 break-words text-sm leading-6 text-ink">
+        {children || "Not set"}
+      </dd>
     </div>
   );
 }
@@ -35,10 +37,10 @@ function DetailsView({ application }) {
     <div className="space-y-7">
       <div>
         <ApplicationStatusBadge status={application.status} />
-        <h3 className="mt-4 text-2xl font-semibold tracking-tight text-ink">
+        <h3 className="mt-4 break-words text-2xl font-semibold tracking-tight text-ink">
           {application.company}
         </h3>
-        <p className="mt-1 text-base text-muted">{application.role}</p>
+        <p className="mt-1 break-words text-base text-muted">{application.role}</p>
       </div>
 
       <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
@@ -61,7 +63,7 @@ function DetailsView({ application }) {
         <Detail label="Recruiter email">
           {application.contact_email ? (
             <a
-              className="font-medium text-brand-700 underline-offset-4 hover:underline"
+              className="break-all font-medium text-brand-700 underline-offset-4 hover:underline dark:text-brand-300"
               href={`mailto:${application.contact_email}`}
             >
               {application.contact_email}
@@ -74,7 +76,7 @@ function DetailsView({ application }) {
               href={jobUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="inline-flex items-center gap-1.5 font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-brand-300"
             >
               Open job posting
               <NavigationIcon name="external" className="size-4" />
@@ -139,7 +141,7 @@ export function ApplicationDrawer({
       className="max-w-2xl overflow-hidden"
       focusKey={mode}
     >
-      <div className="flex-1 overflow-y-auto py-6">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-5 pr-1 sm:py-6">
         {formMode ? (
           <ApplicationForm
             values={values}
@@ -154,15 +156,16 @@ export function ApplicationDrawer({
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 border-t border-line bg-surface py-4">
+      <div className="border-t border-line bg-surface pt-4">
         {formMode ? (
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button variant="ghost" disabled={saving} onClick={onClose}>
+            <Button className="w-full sm:w-auto" variant="ghost" disabled={saving} onClick={onClose}>
               Cancel
             </Button>
             <Button
               type="submit"
               form={formId}
+              className="w-full sm:w-auto"
               loading={saving}
               disabled={!dirty}
             >
@@ -170,17 +173,17 @@ export function ApplicationDrawer({
             </Button>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <Button
               variant="ghost"
-              className="text-danger-700 hover:bg-danger-50 hover:text-danger-800"
+              className="w-full text-danger-700 hover:bg-danger-50 hover:text-danger-800 dark:text-red-300 dark:hover:bg-red-950 dark:hover:text-red-200 sm:w-auto"
               onClick={onDelete}
             >
               <NavigationIcon name="trash" />
               Delete
             </Button>
-            <div className="flex flex-wrap justify-end gap-3">
-              <Button variant="ghost" onClick={onClose}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+              <Button className="w-full sm:w-auto" variant="ghost" onClick={onClose}>
                 Close
               </Button>
               {jobUrl && (
@@ -188,13 +191,13 @@ export function ApplicationDrawer({
                   href={jobUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-ink shadow-control transition-colors hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-ink shadow-control transition-colors hover:bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface sm:w-auto"
                 >
                   <NavigationIcon name="external" />
                   Open job posting
                 </a>
               )}
-              <Button onClick={onEdit}>
+              <Button className="w-full sm:w-auto" onClick={onEdit}>
                 <NavigationIcon name="edit" />
                 Edit
               </Button>

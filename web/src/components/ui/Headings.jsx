@@ -10,7 +10,7 @@ export function PageHeading({ eyebrow, title, description, action, className }) 
     >
       <div className="min-w-0">
         {eyebrow && (
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-brand-700">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">
             {eyebrow}
           </p>
         )}

@@ -4,11 +4,47 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#059669" />
+    <meta name="application-name" content="Trackline" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f8f7" />
     <meta
       name="description"
       content="Trackline is a calm, focused workspace for keeping your job search organised."
     />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Trackline — Keep every opportunity moving" />
+    <meta
+      property="og:description"
+      content="A private, focused workspace for job applications, follow-ups, pipeline status, and current-state analytics."
+    />
+    <meta property="og:url" content="https://job-tracker-eosin-one.vercel.app/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Trackline — Keep every opportunity moving" />
+    <meta
+      name="twitter:description"
+      content="A private, focused workspace for managing a job search."
+    />
+    <script>
+      (() => {
+        const key = "trackline:appearance";
+        let preference = "system";
+        try {
+          const stored = localStorage.getItem(key);
+          if (["light", "dark", "system"].includes(stored)) preference = stored;
+        } catch {}
+        const systemPrefersDark =
+          typeof matchMedia === "function" &&
+          matchMedia("(prefers-color-scheme: dark)").matches;
+        const dark =
+          preference === "dark" ||
+          (preference === "system" && systemPrefersDark);
+        document.documentElement.classList.toggle("dark", dark);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute("content", dark ? "#0f1713" : "#f6f8f7");
+      })();
+    </script>
     <title>Trackline — Keep every opportunity moving</title>
   </head>
   <body>

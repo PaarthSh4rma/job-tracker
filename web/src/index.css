@@ -51,7 +51,8 @@
   --line: #dfe7e3;
   --ink: #17211d;
   --muted: #596862;
-  --faint: #87938e;
+  --faint: #68756f;
+  --overlay: rgb(15 23 42 / 0.48);
   font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -66,7 +67,11 @@
   --line: #2a3a33;
   --ink: #eff6f2;
   --muted: #acbbb4;
-  --faint: #75847d;
+  --faint: #7b8b83;
+  --overlay: rgb(2 8 6 / 0.72);
+  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.22);
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 0.24);
+  --shadow-panel: 0 18px 48px rgb(0 0 0 / 0.48);
 }
 
 @layer base {
@@ -75,15 +80,14 @@
   }
 
   html {
-    min-width: 320px;
     background: var(--canvas);
   }
 
   body {
-    min-width: 320px;
     min-height: 100vh;
     margin: 0;
     background: var(--canvas);
+    color: var(--ink);
   }
 
   button,
@@ -91,6 +95,12 @@
   select,
   textarea {
     font: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    color-scheme: inherit;
   }
 
   button:not(:disabled),
@@ -101,6 +111,10 @@
   ::selection {
     background: #a7f3d0;
     color: #064e3b;
+  }
+
+  :focus-visible {
+    scroll-margin: 1rem;
   }
 }
 
@@ -123,4 +137,15 @@
 
 .animate-loading-bar {
   animation: loading-bar 1.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

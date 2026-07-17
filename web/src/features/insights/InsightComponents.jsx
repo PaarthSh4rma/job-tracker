@@ -4,7 +4,7 @@ import { formatDate } from "../applications/applicationModel";
 
 export function MetricCard({ label, value, context, emphasis = false }) {
   return (
-    <Card className={emphasis ? "p-5 ring-1 ring-brand-200 sm:p-6" : "p-5"}>
+    <Card className={emphasis ? "p-5 ring-1 ring-brand-200 dark:ring-brand-800 sm:p-6" : "p-5"}>
       <p className="text-sm font-medium text-muted">{label}</p>
       <p className="mt-2 text-3xl font-semibold tracking-tight text-ink">{value}</p>
       {context && <p className="mt-2 text-xs leading-5 text-faint">{context}</p>}
@@ -12,11 +12,14 @@ export function MetricCard({ label, value, context, emphasis = false }) {
   );
 }
 
-export function DashboardLoading() {
+export function DashboardLoading({ variant = "overview" }) {
+  const metricCount = variant === "analytics" ? 4 : 3;
+
   return (
-    <div className="space-y-6" aria-label="Loading dashboard">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[0, 1, 2].map((item) => (
+    <div className="space-y-6" role="status" aria-live="polite">
+      <span className="sr-only">Loading dashboard</span>
+      <div className={variant === "analytics" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4" : "grid gap-4 sm:grid-cols-2 lg:grid-cols-3"}>
+        {Array.from({ length: metricCount }, (_, item) => (
           <Card key={item} className="space-y-4 p-5">
             <Skeleton className="h-4 w-2/5" />
             <Skeleton className="h-10 w-1/3" />
@@ -57,8 +60,8 @@ export function DistributionBars({
         <div className="mt-6 space-y-4" role="list" aria-label={title}>
           {visible.map(({ value, label, count }) => (
             <div key={value ?? label} role="listitem">
-              <div className="flex items-center justify-between gap-4 text-sm">
-                <span className="truncate font-medium text-ink">{label}</span>
+              <div className="flex items-start justify-between gap-4 text-sm">
+                <span className="min-w-0 break-words font-medium text-ink">{label}</span>
                 <span className="shrink-0 font-semibold tabular-nums text-muted">
                   {count}
                 </span>
@@ -100,7 +103,7 @@ export function WeeklyActivity({ activity, title = "Weekly application activity"
           {activity.weeks.map(({ weekStart, count }) => (
             <div
               key={weekStart}
-              className="grid grid-cols-[6.5rem_minmax(0,1fr)_2rem] items-center gap-3"
+            className="grid grid-cols-[5.5rem_minmax(0,1fr)_2rem] items-center gap-2 sm:grid-cols-[6.5rem_minmax(0,1fr)_2rem] sm:gap-3"
               role="listitem"
             >
               <span className="text-xs font-medium text-muted">
@@ -146,7 +149,7 @@ function FollowUpRow({ application, urgency, updating, onOpen, onUpdate }) {
           <span className="mt-1 block truncate text-sm text-muted">
             {application.role}
           </span>
-          <span className="mt-2 block text-xs font-bold uppercase tracking-wider text-danger-700">
+          <span className="mt-2 block text-xs font-bold uppercase tracking-wider text-danger-700 dark:text-red-300">
             {urgency}
           </span>
         </button>
@@ -163,7 +166,7 @@ function FollowUpRow({ application, urgency, updating, onOpen, onUpdate }) {
               type="date"
               value={application.next_follow_up_date ?? ""}
               disabled={updating}
-              className="mt-1 min-h-9 rounded-lg border border-line bg-surface px-2 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
+              className="mt-1 min-h-10 rounded-lg border border-line bg-surface px-2 text-sm text-ink outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 disabled:opacity-60"
               onChange={(event) => onUpdate(application, event.target.value)}
             />
           </div>

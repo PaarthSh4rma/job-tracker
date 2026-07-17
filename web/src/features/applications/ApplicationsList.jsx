@@ -1,4 +1,4 @@
-import { Card, EmptyState, Skeleton } from "../../components/ui";
+import { Card, EmptyState, SelectChevron, Skeleton } from "../../components/ui";
 import { NavigationIcon } from "../../components/layout/NavigationIcon";
 import {
   APPLICATION_STATUSES,
@@ -29,7 +29,7 @@ function JobLink({ url, company, compact = false }) {
       href={safeUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+      className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-brand-700 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-brand-300"
       aria-label={`Open job posting for ${company} in a new tab`}
       onClick={(event) => event.stopPropagation()}
     >
@@ -49,7 +49,10 @@ function StatusControl({
   const presentation = applicationStatusPresentation(application.status);
 
   return (
-    <div onClick={(event) => event.stopPropagation()}>
+    <div
+      className="relative inline-block min-w-36"
+      onClick={(event) => event.stopPropagation()}
+    >
       <label className="sr-only" htmlFor={controlId}>
         Status for {application.company}
       </label>
@@ -58,7 +61,7 @@ function StatusControl({
         value={application.status}
         disabled={updating}
         className={cn(
-          "min-h-9 min-w-36 rounded-full border-0 px-3 text-xs font-semibold outline-none ring-1 ring-inset transition focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-60",
+          "min-h-10 w-full appearance-none rounded-full border-0 py-2 pl-3 pr-9 text-xs font-semibold outline-none ring-1 ring-inset transition-colors focus:ring-2 focus:ring-brand-500 disabled:cursor-wait disabled:opacity-60",
           presentation.className,
         )}
         onChange={(event) => onStatusChange(application, event.target.value)}
@@ -69,14 +72,31 @@ function StatusControl({
           </option>
         ))}
       </select>
+      <SelectChevron className="right-3 size-3.5 text-current opacity-70" />
     </div>
   );
 }
 
-export function ApplicationsLoading() {
+export function ApplicationsLoading({ view = "list" }) {
+  if (view === "pipeline") {
+    return (
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" role="status" aria-live="polite">
+        <span className="sr-only">Loading application pipeline</span>
+        {[0, 1, 2, 3].map((item) => (
+          <Card key={item} className="space-y-4 bg-subtle/50 p-4 shadow-none">
+            <Skeleton className="h-5 w-1/2" />
+            <Skeleton className="h-28" />
+            <Skeleton className="h-28" />
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <>
-      <Card className="hidden overflow-hidden md:block" aria-label="Loading applications">
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Loading applications</span>
+      <Card className="hidden overflow-hidden md:block">
         <div className="space-y-1 p-3">
           {[0, 1, 2, 3].map((item) => (
             <div
@@ -91,7 +111,7 @@ export function ApplicationsLoading() {
           ))}
         </div>
       </Card>
-      <div className="grid gap-3 md:hidden" aria-label="Loading applications">
+      <div className="grid gap-3 md:hidden">
         {[0, 1, 2].map((item) => (
           <Card key={item} className="space-y-4 p-4">
             <Skeleton className="h-6 w-2/3" />
@@ -100,7 +120,7 @@ export function ApplicationsLoading() {
           </Card>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -118,7 +138,7 @@ function EmptyApplications({ filtered, onAdd, onClear }) {
         action={
           <button
             type="button"
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:text-brand-300 dark:hover:bg-emerald-950"
             onClick={filtered ? onClear : onAdd}
           >
             {filtered ? "Clear filters" : "Add application"}
@@ -154,6 +174,9 @@ export function ApplicationsList({
       <Card className="hidden overflow-hidden md:block">
         <div className="max-h-[calc(100vh-21rem)] min-h-72 overflow-y-auto">
           <table className="w-full table-fixed text-left">
+            <caption className="sr-only">
+              Applications with current status, application date, work mode, and job link
+            </caption>
             <thead className="sticky top-0 z-10 border-b border-line bg-subtle">
               <tr>
                 <th className="w-[34%] px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted">
@@ -184,7 +207,10 @@ export function ApplicationsList({
                     <button
                       type="button"
                       className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                      onClick={() => onOpen(application.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpen(application.id);
+                      }}
                     >
                       <span className="block truncate font-semibold text-ink">
                         {application.company}
@@ -233,7 +259,10 @@ export function ApplicationsList({
             <button
               type="button"
               className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-              onClick={() => onOpen(application.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpen(application.id);
+              }}
             >
               <span className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
